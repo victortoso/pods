@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm-gitea-main
+data:
+    GITEA__database__DB_TYPE: postgres
+    GITEA__database__HOST: db:5432
+    GITEA__database__NAME: gitea
+    GITEA__database__USER: gitea
+    GITEA__database__PASSWD: gitea
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm-gitea-db
+data:
+    POSTGRES_USER: gitea
+    POSTGRES_PASSWORD: gitea
+    POSTGRES_DB: gitea
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: gitea
+  name: gitea
+spec:
+  containers:
+  - name: main
+    image: docker.gitea.com/gitea:1.23.7-rootless
+    envFrom:
+    - configMapRef:
+        name: cm-gitea-main
+        optional: false
+    ports:
+    - containerPort: 3000
+      hostPort: 3000
+    - containerPort: 2222
+      hostPort: 2222
+    volumeMounts:
+    - mountPath: /var/lib/gitea
+      name: gitea-pvc
+      subPath: data
+    - mountPath: /etc/gitea
+      name: gitea-pvc
+      subPath: config
+
+  - name: db
+    image: docker.io/library/postgres:14
+    envFrom:
+    - configMapRef:
+        name: cm-gitea-db
+        optional: false
+    volumeMounts:
+    - mountPath: /var/lib/postgresql/data
+      name: gitea-pvc
+      subPath: postgres
+
+  volumes:
+  - name: gitea-pvc
+    persistentVolumeClaim:
+      claimName: gitea
